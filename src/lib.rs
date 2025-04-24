@@ -102,16 +102,15 @@ impl<'a> State<'a> {
 
     fn render(&mut self) -> anyhow::Result<()> {
         let drawable = self.surface.get_current_texture()?;
-        let image_view_descriptor = wgpu::TextureViewDescriptor::default();
-        let image_view = drawable.texture.create_view(&image_view_descriptor);
+        let image_view = drawable
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let command_encoder_descriptor = CommandEncoderDescriptor {
-            label: Some("render encoder"),
-        };
-
-        let mut command_encoder = self
-            .device
-            .create_command_encoder(&command_encoder_descriptor);
+        let mut command_encoder = self.device.create_command_encoder(
+            &(CommandEncoderDescriptor {
+                label: Some("render encoder"),
+            }),
+        );
 
         let color_attatchment = RenderPassColorAttachment {
             view: &image_view,
@@ -126,16 +125,16 @@ impl<'a> State<'a> {
                 store: StoreOp::Store,
             },
         };
-        let render_pass_descriptor = RenderPassDescriptor {
-            label: Some("renderpass"),
-            color_attachments: &[Some(color_attatchment)],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        };
-
         {
-            let mut render_pass = command_encoder.begin_render_pass(&render_pass_descriptor);
+            let mut render_pass = command_encoder.begin_render_pass(
+                &(RenderPassDescriptor {
+                    label: Some("renderpass"),
+                    color_attachments: &[Some(color_attatchment)],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                }),
+            );
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
