@@ -46,18 +46,18 @@ impl PipelineBuilder {
         eprintln!("{:?}", filepath);
         let source_code = fs::read_to_string(filepath).expect("can't read source code");
 
-        let shader_module_descriptor = wgpu::ShaderModuleDescriptor {
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader module"),
             source: wgpu::ShaderSource::Wgsl(source_code.into()),
-        };
-        let shader_module = device.create_shader_module(shader_module_descriptor);
+        });
 
-        let pipeline_layout_descriptor = wgpu::PipelineLayoutDescriptor {
-            label: Some("render pipeline layout"),
-            bind_group_layouts: &[],
-            push_constant_ranges: &[],
-        };
-        let render_pipeline_layout = device.create_pipeline_layout(&pipeline_layout_descriptor);
+        let render_pipeline_layout = device.create_pipeline_layout(
+            &(wgpu::PipelineLayoutDescriptor {
+                label: Some("render pipeline layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            }),
+        );
 
         let render_targets = [Some(wgpu::ColorTargetState {
             format: self.pixel_format,
@@ -65,7 +65,7 @@ impl PipelineBuilder {
             write_mask: wgpu::ColorWrites::ALL,
         })];
 
-        let render_pipeline_descriptor = wgpu::RenderPipelineDescriptor {
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("render pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -97,8 +97,6 @@ impl PipelineBuilder {
             },
             multiview: None,
             cache: None,
-        };
-
-        device.create_render_pipeline(&render_pipeline_descriptor)
+        })
     }
 }
