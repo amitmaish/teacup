@@ -46,13 +46,11 @@ pub fn make_triangle(device: &wgpu::Device) -> wgpu::Buffer {
         },
     ];
 
-    device.create_buffer_init(
-        &(wgpu::util::BufferInitDescriptor {
-            label: Some("vertex buffer"),
-            contents: any_as_u8_slice(&verticies),
-            usage: wgpu::BufferUsages::VERTEX,
-        }),
-    )
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("vertex buffer"),
+        contents: any_as_u8_slice(&verticies),
+        usage: wgpu::BufferUsages::VERTEX,
+    })
 }
 
 pub fn make_indecies(device: &wgpu::Device) -> wgpu::Buffer {
