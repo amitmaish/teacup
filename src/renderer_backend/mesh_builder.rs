@@ -27,28 +27,42 @@ fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
 }
 
 pub fn make_triangle(device: &wgpu::Device) -> wgpu::Buffer {
-    let verticies: [Vertex; 3] = [
+    let verticies = [
         Vertex {
             position: Vec3::new(-0.75, -0.75, 0.0),
-            color: Vec3::new(1.0, 0.0, 0.0),
+            color: Vec3::new(0.0, 0.0, 1.0),
         },
         Vertex {
             position: Vec3::new(0.75, -0.75, 0.0),
-            color: Vec3::new(0.0, 1.0, 0.0),
+            color: Vec3::new(1.0, 0.0, 0.5),
         },
         Vertex {
-            position: Vec3::new(0.0, 0.75, 0.0),
-            color: Vec3::new(0.0, 0.0, 1.0),
+            position: Vec3::new(-0.75, 0.75, 0.0),
+            color: Vec3::new(0.0, 1.0, 0.5),
+        },
+        Vertex {
+            position: Vec3::new(0.75, 0.75, 0.0),
+            color: Vec3::new(1.0, 1.0, 0.0),
         },
     ];
 
-    let bytes: &[u8] = any_as_u8_slice(&verticies);
-
-    let buffer_descriptor = wgpu::util::BufferInitDescriptor {
-        label: Some("triangle vertex buffer"),
-        contents: bytes,
-        usage: wgpu::BufferUsages::VERTEX,
-    };
-
-    device.create_buffer_init(&buffer_descriptor)
+    device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some("vertex buffer"),
+            contents: any_as_u8_slice(&verticies),
+            usage: wgpu::BufferUsages::VERTEX,
+        }),
+    )
 }
+
+pub fn make_indecies(device: &wgpu::Device) -> wgpu::Buffer {
+    let indices: [u16; 6] = [0, 1, 2, 2, 1, 3];
+
+    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("index buffer"),
+        contents: any_as_u8_slice(&indices),
+        usage: wgpu::BufferUsages::INDEX,
+    })
+}
+
+pub const NUM_INDICES: u32 = 6;

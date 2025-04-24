@@ -17,7 +17,9 @@ struct State<'a> {
     size: (i32, i32),
     window: &'a mut Window,
     render_pipeline: wgpu::RenderPipeline,
-    triangle_mesh: wgpu::Buffer,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
 }
 
 impl<'a> State<'a> {
@@ -73,7 +75,9 @@ impl<'a> State<'a> {
 
         surface.configure(&device, &config);
 
-        let triangle_mesh = mesh_builder::make_triangle(&device);
+        let vertex_buffer = mesh_builder::make_triangle(&device);
+        let index_buffer = mesh_builder::make_indecies(&device);
+        let num_indices = mesh_builder::NUM_INDICES;
 
         let mut pipeline_builder = PipelineBuilder::new();
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
@@ -90,7 +94,9 @@ impl<'a> State<'a> {
             size,
             window,
             render_pipeline,
-            triangle_mesh,
+            vertex_buffer,
+            index_buffer,
+            num_indices,
         }
     }
 
@@ -131,8 +137,9 @@ impl<'a> State<'a> {
         {
             let mut render_pass = command_encoder.begin_render_pass(&render_pass_descriptor);
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.triangle_mesh.slice(..));
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
         self.queue.submit(std::iter::once(command_encoder.finish()));
 
