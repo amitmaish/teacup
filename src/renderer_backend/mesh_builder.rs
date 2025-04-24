@@ -26,7 +26,7 @@ fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     }
 }
 
-pub fn make_triangle(device: &wgpu::Device) -> wgpu::Buffer {
+pub fn make_verticies(device: &wgpu::Device) -> wgpu::Buffer {
     let verticies = [
         Vertex {
             position: Vec3::new(-0.75, -0.75, 0.0),

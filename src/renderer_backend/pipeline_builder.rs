@@ -40,7 +40,7 @@ impl PipelineBuilder {
 
     pub fn build_pipeline(&self, device: &wgpu::Device) -> wgpu::RenderPipeline {
         let mut filepath = current_dir().unwrap();
-        filepath.push("src/");
+        filepath.push("teacup/src/");
         filepath.push(self.shader_filename.as_str());
         let filepath = filepath.into_os_string().into_string().unwrap();
         eprintln!("{:?}", filepath);

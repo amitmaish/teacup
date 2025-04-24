@@ -8,7 +8,6 @@ anyhow = "1.0"
 env_logger = "0.11"
 log = "0.4"
 glfw = { version = "0.59.0", features = ["all"] }
-pollster = "0.4"
 wgpu = "25.0"
 image = "0.25.6"
 glm = "0.2.3"

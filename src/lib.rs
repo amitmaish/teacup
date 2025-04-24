@@ -1,3 +1,4 @@
+mod layout;
 mod renderer_backend;
 
 use glfw::{Action, Context, Key, Window, fail_on_errors};
@@ -74,7 +75,7 @@ impl<'a> State<'a> {
 
         surface.configure(&device, &config);
 
-        let vertex_buffer = mesh_builder::make_triangle(&device);
+        let vertex_buffer = mesh_builder::make_verticies(&device);
         let index_buffer = mesh_builder::make_indecies(&device);
         let num_indices = mesh_builder::NUM_INDICES;
 
