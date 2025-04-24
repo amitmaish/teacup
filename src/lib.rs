@@ -26,45 +26,44 @@ impl<'a> State<'a> {
     async fn new(window: &'a mut Window) -> Self {
         let size = window.get_framebuffer_size();
 
-        let instance_descriptor = InstanceDescriptor {
+        let instance = wgpu::Instance::new(&InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
-        };
-
-        let instance = wgpu::Instance::new(&instance_descriptor);
+        });
 
         let target = unsafe { SurfaceTargetUnsafe::from_window(&window).unwrap() };
 
         let surface = unsafe { instance.create_surface_unsafe(target).unwrap() };
 
-        let adapter_descriptor = wgpu::RequestAdapterOptionsBase {
-            power_preference: PowerPreference::default(),
-            force_fallback_adapter: false,
-            compatible_surface: Some(&surface),
-        };
-        let adapter = instance.request_adapter(&adapter_descriptor).await.unwrap();
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptionsBase {
+                power_preference: PowerPreference::default(),
+                force_fallback_adapter: false,
+                compatible_surface: Some(&surface),
+            })
+            .await
+            .unwrap();
 
-        let device_descriptor = DeviceDescriptor {
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-            label: Some("Device"),
-            memory_hints: Default::default(),
-            trace: wgpu::Trace::Off,
-        };
-
-        let (device, queue) = adapter.request_device(&device_descriptor).await.unwrap();
+        let (device, queue) = adapter
+            .request_device(&DeviceDescriptor {
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                label: Some("Device"),
+                memory_hints: Default::default(),
+                trace: wgpu::Trace::Off,
+            })
+            .await
+            .unwrap();
 
         let surface_capabilities = surface.get_capabilities(&adapter);
-        let surface_format = surface_capabilities
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(surface_capabilities.formats[0]);
-
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
+            format: surface_capabilities
+                .formats
+                .iter()
+                .copied()
+                .find(|f| f.is_srgb())
+                .unwrap_or(surface_capabilities.formats[0]),
             width: size.0 as u32,
             height: size.1 as u32,
             present_mode: surface_capabilities.present_modes[0],
@@ -106,11 +105,11 @@ impl<'a> State<'a> {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut command_encoder = self.device.create_command_encoder(
-            &(CommandEncoderDescriptor {
+        let mut command_encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("render encoder"),
-            }),
-        );
+            });
 
         let color_attatchment = RenderPassColorAttachment {
             view: &image_view,
@@ -126,15 +125,13 @@ impl<'a> State<'a> {
             },
         };
         {
-            let mut render_pass = command_encoder.begin_render_pass(
-                &(RenderPassDescriptor {
-                    label: Some("renderpass"),
-                    color_attachments: &[Some(color_attatchment)],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                }),
-            );
+            let mut render_pass = command_encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("renderpass"),
+                color_attachments: &[Some(color_attatchment)],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
