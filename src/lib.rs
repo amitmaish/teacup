@@ -2,7 +2,12 @@ mod layout;
 mod renderer_backend;
 
 use glfw::{Action, Context, Key, Window, fail_on_errors};
-use renderer_backend::{mesh_builder, pipeline_builder::PipelineBuilder};
+use glm::Vec3;
+use layout::make_ss_rectangle;
+use renderer_backend::{
+    mesh_builder::{self, Mesh, Vertex, make_rectangle},
+    pipeline_builder::PipelineBuilder,
+};
 use wgpu::{
     CommandEncoderDescriptor, Device, DeviceDescriptor, Instance, InstanceDescriptor, LoadOp,
     Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
@@ -18,14 +23,12 @@ struct State<'a> {
     size: (i32, i32),
     window: &'a mut Window,
     render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
+    meshes: Vec<Mesh>,
 }
 
 impl<'a> State<'a> {
     async fn new(window: &'a mut Window) -> Self {
-        let size = window.get_framebuffer_size();
+        let size = window.get_size();
 
         let instance = wgpu::Instance::new(&InstanceDescriptor {
             backends: wgpu::Backends::all(),
@@ -75,15 +78,66 @@ impl<'a> State<'a> {
 
         surface.configure(&device, &config);
 
-        let vertex_buffer = mesh_builder::make_verticies(&device);
-        let index_buffer = mesh_builder::make_indecies(&device);
-        let num_indices = mesh_builder::NUM_INDICES;
-
         let mut pipeline_builder = PipelineBuilder::new();
         pipeline_builder.set_shader_module("shaders/shader.wgsl", "vs_main", "fs_main");
         pipeline_builder.set_pixel_format(config.format);
         pipeline_builder.set_buffer_layout(mesh_builder::Vertex::get_layout());
         let render_pipeline = pipeline_builder.build_pipeline(&device);
+
+        let meshes = vec![
+            make_rectangle(
+                -0.75,
+                -0.75,
+                1.5,
+                1.5,
+                glm::Vector3 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                },
+            ),
+            Mesh {
+                verticies: vec![
+                    Vertex {
+                        position: Vec3 {
+                            x: -0.75,
+                            y: -0.75,
+                            z: 0.0,
+                        },
+                        color: Vec3 {
+                            x: 1.0,
+                            y: 0.0,
+                            z: 0.0,
+                        },
+                    },
+                    Vertex {
+                        position: Vec3 {
+                            x: 0.75,
+                            y: -0.75,
+                            z: 0.0,
+                        },
+                        color: Vec3 {
+                            x: 0.0,
+                            y: 1.0,
+                            z: 0.0,
+                        },
+                    },
+                    Vertex {
+                        position: Vec3 {
+                            x: 0.0,
+                            y: 0.75,
+                            z: 0.0,
+                        },
+                        color: Vec3 {
+                            x: 0.0,
+                            y: 0.0,
+                            z: 1.0,
+                        },
+                    },
+                ],
+                indices: vec![0, 1, 2],
+            },
+        ];
 
         Self {
             instance,
@@ -94,9 +148,7 @@ impl<'a> State<'a> {
             size,
             window,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            num_indices,
+            meshes,
         }
     }
 
@@ -105,6 +157,45 @@ impl<'a> State<'a> {
         let image_view = drawable
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
+
+        self.meshes = vec![
+            make_ss_rectangle(
+                0,
+                0,
+                200,
+                150,
+                glm::Vector3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                self.size,
+            ),
+            make_ss_rectangle(
+                210,
+                0,
+                150,
+                350,
+                glm::Vector3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                self.size,
+            ),
+            make_ss_rectangle(
+                20,
+                170,
+                150,
+                150,
+                glm::Vector3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+                self.size,
+            ),
+        ];
 
         let mut command_encoder = self
             .device
@@ -134,9 +225,9 @@ impl<'a> State<'a> {
                 occlusion_query_set: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            for mesh in self.meshes.iter_mut() {
+                mesh.draw(&mut render_pass, &self.device);
+            }
         }
         self.queue.submit(std::iter::once(command_encoder.finish()));
 

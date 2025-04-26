@@ -1,10 +1,27 @@
+use std::ops::DerefMut;
+
 use glm::Vec3;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
 pub struct Vertex {
-    position: Vec3,
-    color: Vec3,
+    pub position: Vec3,
+    pub color: Vec3,
+}
+
+pub struct Mesh {
+    pub verticies: Vec<Vertex>,
+    pub indices: Vec<u16>,
+}
+
+impl Mesh {
+    pub fn draw(&mut self, render_pass: &mut wgpu::RenderPass, device: &wgpu::Device) {
+        let vertex_buffer = make_verticies(device, self.verticies.deref_mut());
+        let index_buffer = make_indecies(device, self.indices.deref_mut());
+        render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+        render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..self.indices.len() as u32, 0, 0..1);
+    }
 }
 
 impl Vertex {
@@ -26,41 +43,74 @@ fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     }
 }
 
-pub fn make_verticies(device: &wgpu::Device) -> wgpu::Buffer {
-    let verticies = [
-        Vertex {
-            position: Vec3::new(-0.75, -0.75, 0.0),
-            color: Vec3::new(0.0, 0.0, 1.0),
-        },
-        Vertex {
-            position: Vec3::new(0.75, -0.75, 0.0),
-            color: Vec3::new(1.0, 0.0, 0.5),
-        },
-        Vertex {
-            position: Vec3::new(-0.75, 0.75, 0.0),
-            color: Vec3::new(0.0, 1.0, 0.5),
-        },
-        Vertex {
-            position: Vec3::new(0.75, 0.75, 0.0),
-            color: Vec3::new(1.0, 1.0, 0.0),
-        },
-    ];
+fn array_to_u8_vec<T: Sized>(p: &mut [T]) -> Vec<u8> {
+    let temp: Vec<u8> = p
+        .iter_mut()
+        .map(|f| any_as_u8_slice(f))
+        .flat_map(|s| s.iter())
+        .cloned()
+        .collect();
+    temp
+}
 
+pub fn make_verticies<'a, T: Into<&'a mut [Vertex]>>(
+    device: &wgpu::Device,
+    vertecies: T,
+) -> wgpu::Buffer {
+    let verticies = array_to_u8_vec(vertecies.into());
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("vertex buffer"),
-        contents: any_as_u8_slice(&verticies),
+        contents: &verticies,
         usage: wgpu::BufferUsages::VERTEX,
     })
 }
 
-pub fn make_indecies(device: &wgpu::Device) -> wgpu::Buffer {
-    let indices: [u16; 6] = [0, 1, 2, 2, 1, 3];
+pub fn make_indecies<'a, T: Into<&'a mut [u16]>>(
+    device: &wgpu::Device,
+    indices: T,
+) -> wgpu::Buffer {
+    let indices = array_to_u8_vec(indices.into());
 
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("index buffer"),
-        contents: any_as_u8_slice(&indices),
+        contents: &indices,
         usage: wgpu::BufferUsages::INDEX,
     })
 }
 
-pub const NUM_INDICES: u32 = 6;
+pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: Vec3) -> Mesh {
+    let verticies = vec![
+        Vertex {
+            position: Vec3 { x, y, z: 0.0 },
+            color,
+        },
+        Vertex {
+            position: Vec3 {
+                x: x + w,
+                y,
+                z: 0.0,
+            },
+            color,
+        },
+        Vertex {
+            position: Vec3 {
+                x,
+                y: y - h,
+                z: 0.0,
+            },
+            color,
+        },
+        Vertex {
+            position: Vec3 {
+                x: x + w,
+                y: y - h,
+                z: 0.0,
+            },
+            color,
+        },
+    ];
+
+    let indices: Vec<u16> = vec![0, 2, 1, 3, 1, 2];
+
+    Mesh { verticies, indices }
+}
