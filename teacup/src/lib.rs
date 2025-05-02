@@ -3,7 +3,6 @@ mod renderer_backend;
 
 use glfw::{Action, Context, Key, Window, fail_on_errors};
 use glm::Vec3;
-use layout::make_ss_rectangle;
 use renderer_backend::{
     mesh_builder::{self, Mesh, Vertex, make_rectangle},
     pipeline_builder::PipelineBuilder,
@@ -87,7 +86,7 @@ impl<'a> State<'a> {
         let meshes = vec![
             make_rectangle(
                 -0.75,
-                -0.75,
+                0.75,
                 1.5,
                 1.5,
                 glm::Vector3 {
@@ -157,45 +156,6 @@ impl<'a> State<'a> {
         let image_view = drawable
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-
-        self.meshes = vec![
-            make_ss_rectangle(
-                0,
-                0,
-                200,
-                150,
-                glm::Vector3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                self.size,
-            ),
-            make_ss_rectangle(
-                210,
-                0,
-                150,
-                350,
-                glm::Vector3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                self.size,
-            ),
-            make_ss_rectangle(
-                20,
-                170,
-                150,
-                150,
-                glm::Vector3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                self.size,
-            ),
-        ];
 
         let mut command_encoder = self
             .device
