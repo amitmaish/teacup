@@ -14,3 +14,5 @@ glm = "0.2.3"
 tokio = { version = "1.44.2", features = ["full"] }
 rayon = "1.10.0"
 pollster = "0.4.0"
+
+tinyutils = { path = "../tinyutils" }

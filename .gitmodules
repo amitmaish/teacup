@@ -1,0 +1,3 @@
+[submodule "tinyutils"]
+	path = tinyutils
+	url = https://github.com/amitmaish/tinyutils.git
