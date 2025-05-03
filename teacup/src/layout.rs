@@ -7,6 +7,56 @@ use tinyutils::color::srgb;
 
 use crate::renderer_backend::mesh_builder::{Mesh, make_ss_rectangle};
 
+pub trait Container: Send {
+    fn fit_sizing(&mut self);
+    fn set_child_positions(&mut self);
+
+    fn draw(&self, render_pass: &mut wgpu::RenderPass, device: &wgpu::Device, size: (u16, u16));
+}
+
+pub trait Primative: Send {
+    fn get_parent(&self) -> Weak<Mutex<dyn Container>>;
+    fn set_parent(&mut self, parent: Weak<Mutex<dyn Container>>);
+
+    fn get_width(&self) -> u16;
+    fn get_min_width(&self) -> u16;
+    fn get_max_width(&self) -> Option<u16>;
+    fn get_perfered_width(&self) -> u16;
+
+    fn set_width(&mut self, width: u16);
+    fn set_min_width(&mut self, width: u16);
+    fn set_max_width(&mut self, width: Option<u16>);
+    fn set_perfered_width(&mut self, width: u16);
+
+    fn get_height(&self) -> u16;
+    fn get_min_height(&self) -> u16;
+    fn get_max_height(&self) -> Option<u16>;
+    fn get_perfered_height(&self) -> u16;
+
+    fn set_height(&mut self, height: u16);
+    fn set_min_height(&mut self, height: u16);
+    fn set_max_height(&mut self, height: Option<u16>);
+    fn set_perfered_height(&mut self, height: u16);
+
+    fn get_position(&self) -> (u16, u16);
+    fn set_position(&mut self, position: (u16, u16));
+
+    #[allow(unused_variables)]
+    fn draw_prim(
+        &self,
+        render_pass: &mut wgpu::RenderPass,
+        device: &wgpu::Device,
+        size: (u16, u16),
+    ) {
+    }
+
+    fn get_mesh(&self, size: (u16, u16)) -> Mesh;
+
+    fn as_container(&mut self) -> Option<&mut dyn Container> {
+        None
+    }
+}
+
 pub struct UI {
     pub background_color: srgb,
     pub size: (u16, u16),
@@ -106,56 +156,6 @@ impl Container for TCContainer {
             Level::Error,
             "TCContainer can't be drawn as it is just a temp struct. replace with a proper container"
         )
-    }
-}
-
-pub trait Container: Send {
-    fn fit_sizing(&mut self);
-    fn set_child_positions(&mut self);
-
-    fn draw(&self, render_pass: &mut wgpu::RenderPass, device: &wgpu::Device, size: (u16, u16));
-}
-
-pub trait Primative: Send {
-    fn get_parent(&self) -> Weak<Mutex<dyn Container>>;
-    fn set_parent(&mut self, parent: Weak<Mutex<dyn Container>>);
-
-    fn get_width(&self) -> u16;
-    fn get_min_width(&self) -> u16;
-    fn get_max_width(&self) -> Option<u16>;
-    fn get_perfered_width(&self) -> u16;
-
-    fn set_width(&mut self, width: u16);
-    fn set_min_width(&mut self, width: u16);
-    fn set_max_width(&mut self, width: Option<u16>);
-    fn set_perfered_width(&mut self, width: u16);
-
-    fn get_height(&self) -> u16;
-    fn get_min_height(&self) -> u16;
-    fn get_max_height(&self) -> Option<u16>;
-    fn get_perfered_height(&self) -> u16;
-
-    fn set_height(&mut self, height: u16);
-    fn set_min_height(&mut self, height: u16);
-    fn set_max_height(&mut self, height: Option<u16>);
-    fn set_perfered_height(&mut self, height: u16);
-
-    fn get_position(&self) -> (u16, u16);
-    fn set_position(&mut self, position: (u16, u16));
-
-    #[allow(unused_variables)]
-    fn draw_prim(
-        &self,
-        render_pass: &mut wgpu::RenderPass,
-        device: &wgpu::Device,
-        size: (u16, u16),
-    ) {
-    }
-
-    fn get_mesh(&self, size: (u16, u16)) -> Mesh;
-
-    fn as_container(&mut self) -> Option<&mut dyn Container> {
-        None
     }
 }
 

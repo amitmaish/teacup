@@ -179,8 +179,7 @@ impl<'a> State<'a> {
                 occlusion_query_set: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            self.ui.fit_sizing();
-            self.ui.set_child_positions();
+            self.ui.compute_layout();
             self.ui.draw(
                 &mut render_pass,
                 &self.device,
@@ -201,6 +200,7 @@ impl<'a> State<'a> {
             self.config.height = new_size.1 as u32;
             self.surface.configure(&self.device, &self.config);
             self.update_surface();
+            self.ui.size = (new_size.0 as u16, new_size.1 as u16);
         }
     }
 
