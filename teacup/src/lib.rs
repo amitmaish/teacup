@@ -1,12 +1,15 @@
 mod layout;
 mod renderer_backend;
 
+use std::sync::{Arc, Mutex};
+
 use glfw::{Action, Context, Key, Window, fail_on_errors};
-use glm::Vec3;
+use layout::{Container, LayoutMode, Rectangle, Sizing, SizingMode, UI};
 use renderer_backend::{
-    mesh_builder::{self, Mesh, Vertex, make_rectangle},
+    mesh_builder::{self},
     pipeline_builder::PipelineBuilder,
 };
+use tinyutils::color::{self};
 use wgpu::{
     CommandEncoderDescriptor, Device, DeviceDescriptor, Instance, InstanceDescriptor, LoadOp,
     Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
@@ -22,7 +25,7 @@ struct State<'a> {
     size: (i32, i32),
     window: &'a mut Window,
     render_pipeline: wgpu::RenderPipeline,
-    meshes: Vec<Mesh>,
+    ui: UI,
 }
 
 impl<'a> State<'a> {
@@ -83,60 +86,51 @@ impl<'a> State<'a> {
         pipeline_builder.set_buffer_layout(mesh_builder::Vertex::get_layout());
         let render_pipeline = pipeline_builder.build_pipeline(&device);
 
-        let meshes = vec![
-            make_rectangle(
-                -0.75,
-                0.75,
-                1.5,
-                1.5,
-                glm::Vector3 {
-                    x: 1.0,
-                    y: 1.0,
-                    z: 1.0,
-                },
-            ),
-            Mesh {
-                verticies: vec![
-                    Vertex {
-                        position: Vec3 {
-                            x: -0.75,
-                            y: -0.75,
-                            z: 0.0,
-                        },
-                        color: Vec3 {
-                            x: 1.0,
-                            y: 0.0,
-                            z: 0.0,
-                        },
-                    },
-                    Vertex {
-                        position: Vec3 {
-                            x: 0.75,
-                            y: -0.75,
-                            z: 0.0,
-                        },
-                        color: Vec3 {
-                            x: 0.0,
-                            y: 1.0,
-                            z: 0.0,
-                        },
-                    },
-                    Vertex {
-                        position: Vec3 {
-                            x: 0.0,
-                            y: 0.75,
-                            z: 0.0,
-                        },
-                        color: Vec3 {
-                            x: 0.0,
-                            y: 0.0,
-                            z: 1.0,
-                        },
-                    },
-                ],
-                indices: vec![0, 1, 2],
+        let mut ui = UI::default();
+        let mut root = Rectangle {
+            layout_mode: LayoutMode::LeftToRight,
+            sizing: Sizing::FIT,
+            padding: 16,
+            child_gap: 16,
+            color: color::srgb {
+                r: 1.0,
+                g: 0.0,
+                b: 0.0,
             },
-        ];
+            ..Default::default()
+        };
+
+        let child = Rectangle {
+            sizing: Sizing {
+                width: SizingMode::Fixed(200),
+                height: SizingMode::Fixed(100),
+            },
+            color: color::srgb {
+                r: 0.0,
+                g: 1.0,
+                b: 0.0,
+            },
+            parent: Arc::downgrade(&ui.root_item),
+            ..Default::default()
+        };
+        root.children.push(Arc::new(Mutex::new(child)));
+
+        let child = Rectangle {
+            sizing: Sizing {
+                width: SizingMode::Fixed(150),
+                height: SizingMode::Fixed(150),
+            },
+            color: color::srgb {
+                r: 0.0,
+                g: 0.0,
+                b: 1.0,
+            },
+            parent: Arc::downgrade(&ui.root_item),
+            ..Default::default()
+        };
+        root.children.push(Arc::new(Mutex::new(child)));
+
+        ui.root_item = Arc::new(Mutex::new(root));
 
         Self {
             instance,
@@ -147,7 +141,7 @@ impl<'a> State<'a> {
             size,
             window,
             render_pipeline,
-            meshes,
+            ui,
         }
     }
 
@@ -185,9 +179,13 @@ impl<'a> State<'a> {
                 occlusion_query_set: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            for mesh in self.meshes.iter_mut() {
-                mesh.draw(&mut render_pass, &self.device);
-            }
+            self.ui.fit_sizing();
+            self.ui.set_child_positions();
+            self.ui.draw(
+                &mut render_pass,
+                &self.device,
+                (self.size.0 as u16, self.size.1 as u16),
+            );
         }
         self.queue.submit(std::iter::once(command_encoder.finish()));
 

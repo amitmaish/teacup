@@ -3,17 +3,38 @@
 use std::sync::{Arc, Mutex, Weak};
 
 use log::{Level, log};
+use tinyutils::color::srgb;
+
+use crate::renderer_backend::mesh_builder::{Mesh, make_ss_rectangle};
 
 pub struct UI {
-    root_item: Arc<Mutex<dyn Container>>,
-    background_color: [f64; 3],
-    size: (u16, u16),
+    pub background_color: srgb,
+    pub size: (u16, u16),
+    pub root_item: Arc<Mutex<dyn Container>>,
+}
+impl Default for UI {
+    fn default() -> Self {
+        Self {
+            root_item: Arc::new(Mutex::new(TCContainer {})),
+            background_color: Default::default(),
+            size: Default::default(),
+        }
+    }
+}
+
+impl UI {
+    pub fn compute_layout(&self) {
+        if let Ok(mut container) = self.root_item.lock() {
+            container.fit_sizing();
+            container.set_child_positions();
+        }
+    }
 }
 
 impl Container for UI {
     fn fit_sizing(&mut self) {
         if let Ok(mut container) = self.root_item.lock() {
-            container.fit_sizing()
+            container.fit_sizing();
         }
     }
 
@@ -22,9 +43,15 @@ impl Container for UI {
             root.set_child_positions();
         }
     }
+
+    fn draw(&self, render_pass: &mut wgpu::RenderPass, device: &wgpu::Device, size: (u16, u16)) {
+        if let Ok(root) = self.root_item.lock() {
+            root.draw(render_pass, device, size);
+        }
+    }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum SizingMode {
     Fixed(u16),
     #[default]
@@ -32,13 +59,25 @@ pub enum SizingMode {
     Grow,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Sizing {
-    width: SizingMode,
-    height: SizingMode,
+    pub width: SizingMode,
+    pub height: SizingMode,
 }
 
-#[derive(Default, Clone)]
+impl Sizing {
+    pub const FIT: Sizing = Sizing {
+        width: SizingMode::Fit,
+        height: SizingMode::Fit,
+    };
+
+    pub const GROW: Sizing = Sizing {
+        width: SizingMode::Grow,
+        height: SizingMode::Grow,
+    };
+}
+
+#[derive(Debug, Default, Clone)]
 pub enum LayoutMode {
     TopToBottom,
     #[default]
@@ -61,14 +100,23 @@ impl Container for TCContainer {
             "TCContainer can't compute layout as it is just a temp struct. replace with a proper container"
         )
     }
+
+    fn draw(&self, _render_pass: &mut wgpu::RenderPass, _device: &wgpu::Device, _size: (u16, u16)) {
+        log!(
+            Level::Error,
+            "TCContainer can't be drawn as it is just a temp struct. replace with a proper container"
+        )
+    }
 }
 
-pub trait Container {
+pub trait Container: Send {
     fn fit_sizing(&mut self);
     fn set_child_positions(&mut self);
+
+    fn draw(&self, render_pass: &mut wgpu::RenderPass, device: &wgpu::Device, size: (u16, u16));
 }
 
-pub trait Primative {
+pub trait Primative: Send {
     fn get_parent(&self) -> Weak<Mutex<dyn Container>>;
     fn set_parent(&mut self, parent: Weak<Mutex<dyn Container>>);
 
@@ -95,28 +143,39 @@ pub trait Primative {
     fn get_position(&self) -> (u16, u16);
     fn set_position(&mut self, position: (u16, u16));
 
+    #[allow(unused_variables)]
+    fn draw_prim(
+        &self,
+        render_pass: &mut wgpu::RenderPass,
+        device: &wgpu::Device,
+        size: (u16, u16),
+    ) {
+    }
+
+    fn get_mesh(&self, size: (u16, u16)) -> Mesh;
+
     fn as_container(&mut self) -> Option<&mut dyn Container> {
         None
     }
 }
 
 pub struct Rectangle {
-    width: u16,
-    height: u16,
-    perfered_width: u16,
-    perfered_height: u16,
-    min_width: u16,
-    min_height: u16,
-    max_width: Option<u16>,
-    max_height: Option<u16>,
-    position: (u16, u16),
-    layout_mode: LayoutMode,
-    sizing: Sizing,
-    padding: u16,
-    child_gap: u16,
-    color: srgb,
-    parent: Weak<Mutex<dyn Container>>,
-    children: Vec<Arc<Mutex<dyn Primative>>>,
+    pub width: u16,
+    pub height: u16,
+    pub perfered_width: u16,
+    pub perfered_height: u16,
+    pub min_width: u16,
+    pub min_height: u16,
+    pub max_width: Option<u16>,
+    pub max_height: Option<u16>,
+    pub position: (u16, u16),
+    pub layout_mode: LayoutMode,
+    pub sizing: Sizing,
+    pub padding: u16,
+    pub child_gap: u16,
+    pub color: srgb,
+    pub parent: Weak<Mutex<dyn Container>>,
+    pub children: Vec<Arc<Mutex<dyn Primative>>>,
 }
 
 impl Default for Rectangle {
@@ -227,6 +286,34 @@ impl Primative for Rectangle {
     fn as_container(&mut self) -> std::option::Option<&mut dyn Container> {
         Some(self as &mut dyn Container)
     }
+
+    fn draw_prim(
+        &self,
+        render_pass: &mut wgpu::RenderPass,
+        device: &wgpu::Device,
+        size: (u16, u16),
+    ) {
+        let mut mesh = make_ss_rectangle(
+            self.position.0,
+            self.position.1,
+            self.width,
+            self.height,
+            self.color,
+            size,
+        );
+        mesh.draw(render_pass, device);
+    }
+
+    fn get_mesh(&self, size: (u16, u16)) -> Mesh {
+        make_ss_rectangle(
+            self.position.0,
+            self.position.1,
+            self.width,
+            self.height,
+            self.color,
+            size,
+        )
+    }
 }
 
 impl Container for Rectangle {
@@ -256,14 +343,28 @@ impl Container for Rectangle {
                     axis_size += (len as u16 - 1) * self.child_gap;
                 }
 
+                off_axis_size += 2 * self.padding;
+
                 match self.sizing.width {
-                    SizingMode::Fixed(w) => self.perfered_width = w,
-                    SizingMode::Fit | SizingMode::Grow => self.perfered_width = axis_size,
+                    SizingMode::Fixed(w) => {
+                        self.perfered_width = w;
+                        self.width = w;
+                    }
+                    SizingMode::Fit | SizingMode::Grow => {
+                        self.perfered_width = axis_size;
+                        self.width = axis_size;
+                    }
                 }
 
                 match self.sizing.height {
-                    SizingMode::Fixed(h) => self.perfered_height = h,
-                    SizingMode::Fit | SizingMode::Grow => self.perfered_height = off_axis_size,
+                    SizingMode::Fixed(h) => {
+                        self.perfered_height = h;
+                        self.height = h;
+                    }
+                    SizingMode::Fit | SizingMode::Grow => {
+                        self.perfered_height = off_axis_size;
+                        self.height = off_axis_size;
+                    }
                 }
             }
         }
@@ -286,6 +387,28 @@ impl Container for Rectangle {
                             container.set_child_positions();
                         }
                     }
+                }
+            }
+        }
+    }
+
+    fn draw(&self, render_pass: &mut wgpu::RenderPass, device: &wgpu::Device, size: (u16, u16)) {
+        let mut mesh = make_ss_rectangle(
+            self.position.0,
+            self.position.1,
+            self.width,
+            self.height,
+            self.color,
+            size,
+        );
+        mesh.draw(render_pass, device);
+
+        for child in &self.children {
+            if let Ok(mut prim) = child.lock() {
+                if let Some(container) = prim.as_container() {
+                    container.draw(render_pass, device, size);
+                } else {
+                    prim.draw_prim(render_pass, device, size);
                 }
             }
         }
