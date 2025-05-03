@@ -43,7 +43,6 @@ impl PipelineBuilder {
         filepath.push("teacup/src/");
         filepath.push(self.shader_filename.as_str());
         let filepath = filepath.into_os_string().into_string().unwrap();
-        eprintln!("{:?}", filepath);
         let source_code = fs::read_to_string(filepath).expect("can't read source code");
 
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
