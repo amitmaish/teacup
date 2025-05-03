@@ -1,14 +1,17 @@
 use std::ops::DerefMut;
 
-use glm::Vec3;
+use cgmath::Vector3;
+use tinyutils::color::srgb;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct Vertex {
-    pub position: Vec3,
-    pub color: Vec3,
+    pub position: Vector3<f32>,
+    pub color: srgb,
 }
 
+#[derive(Debug)]
 pub struct Mesh {
     pub verticies: Vec<Vertex>,
     pub indices: Vec<u16>,
@@ -78,14 +81,14 @@ pub fn make_indecies<'a, T: Into<&'a mut [u16]>>(
     })
 }
 
-pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: Vec3) -> Mesh {
+pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: srgb) -> Mesh {
     let verticies = vec![
         Vertex {
-            position: Vec3 { x, y, z: 0.0 },
+            position: Vector3 { x, y, z: 0.0 },
             color,
         },
         Vertex {
-            position: Vec3 {
+            position: Vector3 {
                 x: x + w,
                 y,
                 z: 0.0,
@@ -93,7 +96,7 @@ pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: Vec3) -> Mesh {
             color,
         },
         Vertex {
-            position: Vec3 {
+            position: Vector3 {
                 x,
                 y: y - h,
                 z: 0.0,
@@ -101,7 +104,7 @@ pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: Vec3) -> Mesh {
             color,
         },
         Vertex {
-            position: Vec3 {
+            position: Vector3 {
                 x: x + w,
                 y: y - h,
                 z: 0.0,
@@ -113,4 +116,13 @@ pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: Vec3) -> Mesh {
     let indices: Vec<u16> = vec![0, 2, 1, 3, 1, 2];
 
     Mesh { verticies, indices }
+}
+
+pub fn make_ss_rectangle(x: u16, y: u16, w: u16, h: u16, color: srgb, size: (u16, u16)) -> Mesh {
+    let x = (x as f32 / size.0 as f32) - 1.0;
+    let y = 1.0 - (y as f32 / size.1 as f32);
+    let w = w as f32 / size.0 as f32;
+    let h = h as f32 / size.1 as f32;
+
+    make_rectangle(x, y, w, h, color)
 }
