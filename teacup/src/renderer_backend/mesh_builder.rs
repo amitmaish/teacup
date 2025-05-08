@@ -118,7 +118,7 @@ pub fn make_rectangle(x: f32, y: f32, w: f32, h: f32, color: srgb) -> Mesh {
     Mesh { verticies, indices }
 }
 
-pub fn make_ss_rectangle(x: u16, y: u16, w: u16, h: u16, color: srgb, size: (u16, u16)) -> Mesh {
+pub fn make_ss_rectangle(x: i32, y: i32, w: i32, h: i32, color: srgb, size: (i32, i32)) -> Mesh {
     let x = (x as f32 / size.0 as f32) - 1.0;
     let y = 1.0 - (y as f32 / size.1 as f32);
     let w = w as f32 / size.0 as f32;
