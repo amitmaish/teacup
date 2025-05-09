@@ -16,6 +16,10 @@ use wgpu::{
     Surface, SurfaceConfiguration, SurfaceTargetUnsafe, TextureUsages,
 };
 
+struct App<'a> {
+    state: State<'a>,
+}
+
 struct State<'a> {
     instance: Instance,
     surface: Surface<'a>,
