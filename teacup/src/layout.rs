@@ -381,6 +381,8 @@ impl Container for Rectangle {
         };
         let mut axis_size: i32 = 2 * self.padding;
         let mut off_axis_size: i32 = 0;
+        let mut first = false;
+        let mut gap = 0;
         for child in &self.children {
             if let Ok(mut prim) = child.lock() {
                 if let Some(container) = prim.as_container() {
@@ -392,13 +394,14 @@ impl Container for Rectangle {
                     prim.set_size_along_axis(!axis, size);
                 }
 
-                axis_size += prim.get_size_along_axis(axis);
+                axis_size += prim.get_size_along_axis(axis) + gap;
                 off_axis_size = off_axis_size.max(prim.get_size_along_axis(!axis));
+
+                if !first {
+                    first = true;
+                    gap = self.child_gap;
+                }
             }
-        }
-        let len = self.children.len();
-        if len > 0 {
-            axis_size += (len as i32 - 1) * self.child_gap;
         }
 
         off_axis_size += 2 * self.padding;
@@ -410,8 +413,8 @@ impl Container for Rectangle {
                     }
                     SizingMode::Fit | SizingMode::Grow => {
                         self.width = off_axis_size.max(self.min_width);
-                        if let Some(min) = self.max_width {
-                            self.width = self.width.min(min);
+                        if let Some(max) = self.max_width {
+                            self.width = self.width.min(max);
                         }
                     }
                 }
@@ -434,7 +437,10 @@ impl Container for Rectangle {
                         self.width = w;
                     }
                     SizingMode::Fit | SizingMode::Grow => {
-                        self.width = axis_size;
+                        self.width = axis_size.max(self.min_width);
+                        if let Some(max) = self.max_width {
+                            self.width = self.width.min(max);
+                        }
                     }
                 }
 
@@ -443,7 +449,10 @@ impl Container for Rectangle {
                         self.height = h;
                     }
                     SizingMode::Fit | SizingMode::Grow => {
-                        self.height = off_axis_size;
+                        self.height = off_axis_size.max(self.min_height);
+                        if let Some(max) = self.max_height {
+                            self.height = self.height.min(max);
+                        }
                     }
                 }
             }
@@ -489,7 +498,7 @@ impl Container for Rectangle {
             .cloned()
             .collect();
 
-        let mut depth = self.children.len() + 1;
+        let mut depth = grow_list.len() + 1;
 
         while remaining_space.is_positive() && !grow_list.is_empty() && !depth.is_zero() {
             depth -= 1;
@@ -518,7 +527,7 @@ impl Container for Rectangle {
                 .cloned()
                 .collect();
 
-            let second_smallest_size = grow_list
+            let filter: Vec<Arc<Mutex<dyn Primative>>> = grow_list
                 .par_iter()
                 .filter(|prim| {
                     if let Ok(prim) = prim.lock() {
@@ -527,17 +536,38 @@ impl Container for Rectangle {
                         false
                     }
                 })
-                .map(|prim| {
-                    if let Ok(prim) = prim.lock() {
-                        prim.get_size_along_axis(axis)
-                    } else {
-                        remaining_space
-                    }
-                })
-                .min();
+                .cloned()
+                .collect();
+
+            let mut second_smallest_size: Option<i32> = None;
+
+            for child in filter {
+                let size = if let Ok(prim) = child.lock() {
+                    prim.get_size_along_axis(axis)
+                } else {
+                    remaining_space
+                };
+
+                if let Some(min) = second_smallest_size {
+                    second_smallest_size = Some(size.min(min));
+                } else {
+                    second_smallest_size = Some(size);
+                }
+            }
+
+            // let second_smallest_size = filter
+            //     .iter()
+            //     .map(|prim| {
+            //         if let Ok(prim) = prim.lock() {
+            //             prim.get_size_along_axis(axis)
+            //         } else {
+            //             remaining_space
+            //         }
+            //     })
+            //     .min();
 
             let grow_step = if let Some(second_smallest_size) = second_smallest_size {
-                (second_smallest_size - smallest_size) / min_growing_list.len() as i32
+                second_smallest_size - smallest_size
             } else {
                 remaining_space / min_growing_list.len() as i32
             };

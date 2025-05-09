@@ -122,34 +122,34 @@ impl<'a> State<'a> {
         };
         root.children.push(Arc::new(Mutex::new(child)));
 
-        // let mut child = Rectangle {
-        //     layout_mode: LayoutMode::TopToBottom,
-        //     sizing: Sizing::GROW,
-        //     padding: 16,
-        //     child_gap: 16,
-        //     color: color::srgb::BLUE,
-        //     ..Default::default()
-        // };
-        //
-        // let inner = Rectangle {
-        //     sizing: Sizing::GROW,
-        //     min_width: 100,
-        //     min_height: 50,
-        //     color: color::srgb::WHITE,
-        //     ..Default::default()
-        // };
-        // child.children.push(Arc::new(Mutex::new(inner)));
-        //
-        // let inner = Rectangle {
-        //     sizing: Sizing::GROW,
-        //     min_width: 100,
-        //     min_height: 50,
-        //     color: color::srgb::BLACK,
-        //     ..Default::default()
-        // };
-        // child.children.push(Arc::new(Mutex::new(inner)));
-        //
-        // root.children.push(Arc::new(Mutex::new(child)));
+        let mut child = Rectangle {
+            layout_mode: LayoutMode::TopToBottom,
+            sizing: Sizing::GROW,
+            padding: 16,
+            child_gap: 16,
+            color: color::srgb::BLUE,
+            ..Default::default()
+        };
+
+        let inner = Rectangle {
+            sizing: Sizing::GROW,
+            min_width: 100,
+            min_height: 50,
+            color: color::srgb::WHITE,
+            ..Default::default()
+        };
+        child.children.push(Arc::new(Mutex::new(inner)));
+
+        let inner = Rectangle {
+            sizing: Sizing::GROW,
+            min_width: 100,
+            min_height: 50,
+            color: color::srgb::BLACK,
+            ..Default::default()
+        };
+        child.children.push(Arc::new(Mutex::new(inner)));
+
+        root.children.push(Arc::new(Mutex::new(child)));
 
         ui.root_item = Arc::new(Mutex::new(root));
 
