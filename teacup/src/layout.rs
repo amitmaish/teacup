@@ -567,7 +567,7 @@ impl Container for Rectangle {
             //     .min();
 
             let grow_step = if let Some(second_smallest_size) = second_smallest_size {
-                second_smallest_size - smallest_size
+                (second_smallest_size - smallest_size).min(remaining_space / min_growing_list.len() as i32)
             } else {
                 remaining_space / min_growing_list.len() as i32
             };
