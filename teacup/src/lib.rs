@@ -1,11 +1,11 @@
 mod layout;
-mod renderer_backend;
+mod renderer;
 
 use std::sync::{Arc, Mutex};
 
 use glfw::{Action, Context, Key, Window, fail_on_errors};
 use layout::{Container, LayoutMode, Rectangle, Sizing, UI};
-use renderer_backend::{
+use renderer::{
     mesh_builder::{self},
     pipeline_builder::PipelineBuilder,
 };
@@ -16,18 +16,14 @@ use wgpu::{
     Surface, SurfaceConfiguration, SurfaceTargetUnsafe, TextureUsages,
 };
 
-struct App<'a> {
-    state: State<'a>,
-}
-
 struct State<'a> {
+    window: &'a mut Window,
     instance: Instance,
     surface: Surface<'a>,
     device: Device,
     queue: Queue,
     config: SurfaceConfiguration,
     size: (i32, i32),
-    window: &'a mut Window,
     render_pipeline: wgpu::RenderPipeline,
     ui: UI,
 }
@@ -158,13 +154,13 @@ impl<'a> State<'a> {
         ui.root_item = Arc::new(Mutex::new(root));
 
         Self {
+            window,
             instance,
             surface,
             device,
             queue,
             config,
             size,
-            window,
             render_pipeline,
             ui,
         }

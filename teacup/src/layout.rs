@@ -10,7 +10,7 @@ use log::{Level, log};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tinyutils::color::srgb;
 
-use crate::renderer_backend::mesh_builder::{Mesh, make_ss_rectangle};
+use crate::renderer::mesh_builder::{Mesh, make_ss_rectangle};
 
 pub trait Container: Send {
     fn fit_sizing(&mut self);
@@ -567,7 +567,8 @@ impl Container for Rectangle {
             //     .min();
 
             let grow_step = if let Some(second_smallest_size) = second_smallest_size {
-                (second_smallest_size - smallest_size).min(remaining_space / min_growing_list.len() as i32)
+                (second_smallest_size - smallest_size)
+                    .min(remaining_space / min_growing_list.len() as i32)
             } else {
                 remaining_space / min_growing_list.len() as i32
             };

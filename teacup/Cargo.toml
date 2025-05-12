@@ -15,3 +15,5 @@ rayon = "1.10.0"
 pollster = "0.4.0"
 tinyutils = { path = "../tinyutils" }
 cgmath = { version = "0.18.0", features = ["serde"] }
+wgsl-inline = "0.2.1"
+bytemuck = "1.23.0"

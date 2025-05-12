@@ -1,5 +1,3 @@
-use std::{env::current_dir, fs};
-
 pub struct PipelineBuilder {
     shader_filename: String,
     vertex_entry: String,
@@ -39,15 +37,9 @@ impl PipelineBuilder {
     }
 
     pub fn build_pipeline(&self, device: &wgpu::Device) -> wgpu::RenderPipeline {
-        let mut filepath = current_dir().unwrap();
-        filepath.push("teacup/src/");
-        filepath.push(self.shader_filename.as_str());
-        let filepath = filepath.into_os_string().into_string().unwrap();
-        let source_code = fs::read_to_string(filepath).expect("can't read source code");
-
         let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shader module"),
-            source: wgpu::ShaderSource::Wgsl(source_code.into()),
+            source: wgpu::ShaderSource::Wgsl(default_shader::SOURCE.into()),
         });
 
         let render_pipeline_layout = device.create_pipeline_layout(
@@ -98,4 +90,32 @@ impl PipelineBuilder {
             cache: None,
         })
     }
+}
+
+mod default_shader {
+    wgsl_inline::wgsl!(
+    struct Vertex {
+        @location(0) position: vec3<f32>,
+        @location(1) color: vec3<f32>,
+    }
+
+    struct VertexPayload {
+        @builtin(position) position: vec4<f32>,
+        @location(0) color: vec3<f32>,
+    };
+
+    @vertex
+    fn vs_main(vertex: Vertex) -> VertexPayload {
+
+        var out: VertexPayload;
+        out.position = vec4<f32>(vertex.position, 1.0);
+        out.color = vertex.color;
+        return out;
+    }
+
+    @fragment
+    fn fs_main(in: VertexPayload) -> @location(0) vec4<f32> {
+        return vec4<f32>(in.color, 1.0);
+    }
+    );
 }
