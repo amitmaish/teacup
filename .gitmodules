@@ -1,3 +1,6 @@
 [submodule "tinyutils"]
 	path = tinyutils
 	url = https://github.com/amitmaish/tinyutils.git
+[submodule "tinycolor"]
+	path = tinycolor
+	url = https://github.com/amitmaish/tinycolor.git
