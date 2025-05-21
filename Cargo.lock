@@ -1846,6 +1846,8 @@ dependencies = [
 [[package]]
 name = "tinycolors"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21d9b59a55f1efe0429145e58d4ab933b4aa1dbc134e4fadd3bfbb01a82a4bab"
 dependencies = [
  "okhsl",
  "serde",
