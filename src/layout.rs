@@ -6,11 +6,11 @@ use std::{
 };
 
 use cgmath::Zero;
-use log::{Level, log};
+use log::{log, Level};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use tinyutils::color::srgb;
+use tinycolors::srgb;
 
-use crate::renderer::mesh_builder::{Mesh, make_ss_rectangle};
+use crate::renderer::mesh_builder::{make_ss_rectangle, Mesh};
 
 pub trait Container: Send {
     fn fit_sizing(&mut self);

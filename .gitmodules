@@ -4,3 +4,6 @@
 [submodule "tinycolor"]
 	path = tinycolor
 	url = https://github.com/amitmaish/tinycolor.git
+[submodule "tinycolors"]
+	path = tinycolors
+	url = https://github.com/amitmaish/tinycolors.git

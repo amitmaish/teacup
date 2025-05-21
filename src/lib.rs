@@ -9,7 +9,7 @@ use renderer::{
     mesh_builder::{self},
     pipeline_builder::PipelineBuilder,
 };
-use tinyutils::color::{self};
+use tinycolors as color;
 use wgpu::{
     CommandEncoderDescriptor, Device, DeviceDescriptor, Instance, InstanceDescriptor, LoadOp,
     Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,

@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use cgmath::Vector3;
-use tinyutils::color::srgb;
+use tinycolors::srgb;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
