@@ -25,7 +25,6 @@ struct State<'a> {
     config: SurfaceConfiguration,
     size: (i32, i32),
     render_pipeline: wgpu::RenderPipeline,
-    ui: UI,
 }
 
 impl<'a> State<'a> {
@@ -86,73 +85,6 @@ impl<'a> State<'a> {
         pipeline_builder.set_buffer_layout(mesh_builder::Vertex::get_layout());
         let render_pipeline = pipeline_builder.build_pipeline(&device);
 
-        let mut ui = UI {
-            size: (size.0 * 2, size.1 * 2),
-            ..Default::default()
-        };
-        let mut root = Rectangle {
-            layout_mode: LayoutMode::LeftToRight,
-            sizing: Sizing::GROW,
-            padding: 16,
-            child_gap: 16,
-            color: color::srgb::RED,
-            ..Default::default()
-        };
-
-        let child = Rectangle {
-            sizing: Sizing::GROW,
-            color: color::srgb::GREEN,
-            min_width: 100,
-            max_width: Some(200),
-            ..Default::default()
-        };
-        root.children.push(Arc::new(Mutex::new(child)));
-
-        let child = Rectangle {
-            sizing: Sizing::GROW,
-            color: color::srgb::PURPLE,
-            ..Default::default()
-        };
-        root.children.push(Arc::new(Mutex::new(child)));
-
-        let child = Rectangle {
-            sizing: Sizing::GROW,
-            color: color::srgb::AQUA,
-            ..Default::default()
-        };
-        root.children.push(Arc::new(Mutex::new(child)));
-
-        let mut child = Rectangle {
-            layout_mode: LayoutMode::TopToBottom,
-            sizing: Sizing::GROW,
-            padding: 16,
-            child_gap: 16,
-            color: color::srgb::BLUE,
-            ..Default::default()
-        };
-
-        let inner = Rectangle {
-            sizing: Sizing::GROW,
-            min_width: 100,
-            min_height: 50,
-            color: color::srgb::WHITE,
-            ..Default::default()
-        };
-        child.children.push(Arc::new(Mutex::new(inner)));
-
-        let inner = Rectangle {
-            sizing: Sizing::GROW,
-            min_width: 100,
-            min_height: 50,
-            color: color::srgb::BLACK,
-            ..Default::default()
-        };
-        child.children.push(Arc::new(Mutex::new(inner)));
-
-        root.children.push(Arc::new(Mutex::new(child)));
-
-        ui.root_item = Arc::new(Mutex::new(root));
-
         Self {
             window,
             instance,
@@ -162,11 +94,10 @@ impl<'a> State<'a> {
             config,
             size,
             render_pipeline,
-            ui,
         }
     }
 
-    fn render(&mut self) -> anyhow::Result<()> {
+    fn render(&mut self, ui: &mut UI) -> anyhow::Result<()> {
         let drawable = self.surface.get_current_texture()?;
         let image_view = drawable
             .texture
@@ -200,8 +131,8 @@ impl<'a> State<'a> {
                 occlusion_query_set: None,
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            self.ui.compute_layout();
-            self.ui.draw(&mut render_pass, &self.device, self.size);
+            ui.compute_layout();
+            ui.draw(&mut render_pass, &self.device, self.size);
         }
         self.queue.submit(std::iter::once(command_encoder.finish()));
 
@@ -217,7 +148,6 @@ impl<'a> State<'a> {
             self.config.height = new_size.1 as u32;
             self.surface.configure(&self.device, &self.config);
             self.update_surface();
-            self.ui.size = (new_size.0 * 2, new_size.1 * 2);
         }
     }
 
@@ -244,6 +174,8 @@ pub async fn run() -> anyhow::Result<()> {
 
     let mut state = State::new(&mut window).await;
 
+    let mut ui = build_ui(state.size);
+
     while !state.window.should_close() {
         glfw.poll_events();
 
@@ -256,6 +188,7 @@ pub async fn run() -> anyhow::Result<()> {
                 }
                 glfw::WindowEvent::Size(x, y) => {
                     state.resize((x, y));
+                    ui = build_ui((x, y));
                 }
                 _ => {
                     println!("{:?}", event);
@@ -263,7 +196,7 @@ pub async fn run() -> anyhow::Result<()> {
             }
         }
 
-        match state.render() {
+        match state.render(&mut ui) {
             Ok(_) => {}
             Err(e) => eprintln!("{:?}", e),
         }
@@ -272,4 +205,75 @@ pub async fn run() -> anyhow::Result<()> {
     }
 
     anyhow::Ok(())
+}
+
+fn build_ui(size: (i32, i32)) -> UI {
+    let mut ui = UI {
+        size: (size.0 * 2, size.1 * 2),
+        ..Default::default()
+    };
+    let mut root = Rectangle {
+        layout_mode: LayoutMode::LeftToRight,
+        sizing: Sizing::GROW,
+        padding: 16,
+        child_gap: 16,
+        color: color::srgb::RED,
+        ..Default::default()
+    };
+
+    let child = Rectangle {
+        sizing: Sizing::GROW,
+        color: color::srgb::GREEN,
+        min_width: 100,
+        max_width: Some(200),
+        ..Default::default()
+    };
+    root.children.push(Arc::new(Mutex::new(child)));
+
+    let child = Rectangle {
+        sizing: Sizing::GROW,
+        color: color::srgb::PURPLE,
+        ..Default::default()
+    };
+    root.children.push(Arc::new(Mutex::new(child)));
+
+    let child = Rectangle {
+        sizing: Sizing::GROW,
+        color: color::srgb::AQUA,
+        ..Default::default()
+    };
+    root.children.push(Arc::new(Mutex::new(child)));
+
+    let mut child = Rectangle {
+        layout_mode: LayoutMode::TopToBottom,
+        sizing: Sizing::GROW,
+        padding: 16,
+        child_gap: 16,
+        color: color::srgb::BLUE,
+        ..Default::default()
+    };
+
+    let inner = Rectangle {
+        sizing: Sizing::GROW,
+        min_width: 100,
+        min_height: 50,
+        color: color::srgb::WHITE,
+        ..Default::default()
+    };
+    child.children.push(Arc::new(Mutex::new(inner)));
+
+    let inner = Rectangle {
+        sizing: Sizing::GROW,
+        min_width: 100,
+        min_height: 50,
+        color: color::srgb::BLACK,
+        ..Default::default()
+    };
+    child.children.push(Arc::new(Mutex::new(inner)));
+
+    root.children.push(Arc::new(Mutex::new(child)));
+
+    ui.root_item = Arc::new(Mutex::new(root));
+
+    ui
 }
