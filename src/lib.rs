@@ -31,7 +31,7 @@ struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
 }
 
-impl<'a> State<'a> {
+impl State<'_> {
     async fn new(window: Arc<Mutex<PWindow>>) -> Self {
         let size = window.lock().await.get_size();
 
