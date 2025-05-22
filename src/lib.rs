@@ -1,15 +1,19 @@
 mod layout;
 mod renderer;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    ops::Deref,
+    sync::{self, Arc},
+};
 
-use glfw::{Action, Context, Key, Window, fail_on_errors};
+use glfw::{Action, Context, Key, PWindow, fail_on_errors};
 use layout::{Container, LayoutMode, Rectangle, Sizing, UI};
 use renderer::{
     mesh_builder::{self},
     pipeline_builder::PipelineBuilder,
 };
 use tinycolors as color;
+use tokio::sync::Mutex;
 use wgpu::{
     CommandEncoderDescriptor, Device, DeviceDescriptor, Instance, InstanceDescriptor, LoadOp,
     Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
@@ -17,7 +21,7 @@ use wgpu::{
 };
 
 struct State<'a> {
-    window: &'a mut Window,
+    window: Arc<Mutex<PWindow>>,
     instance: Instance,
     surface: Surface<'a>,
     device: Device,
@@ -28,15 +32,20 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    async fn new(window: &'a mut Window) -> Self {
-        let size = window.get_size();
+    async fn new(window: Arc<Mutex<PWindow>>) -> Self {
+        let size = window.lock().await.get_size();
 
         let instance = wgpu::Instance::new(&InstanceDescriptor {
             backends: wgpu::Backends::all(),
             ..Default::default()
         });
 
-        let target = unsafe { SurfaceTargetUnsafe::from_window(&window).unwrap() };
+        let mutex_guard = window.lock().await;
+        let temp_window = mutex_guard.deref();
+
+        let target = unsafe { SurfaceTargetUnsafe::from_window(temp_window).unwrap() };
+
+        drop(mutex_guard);
 
         let surface = unsafe { instance.create_surface_unsafe(target).unwrap() };
 
@@ -141,42 +150,54 @@ impl<'a> State<'a> {
         anyhow::Ok(())
     }
 
-    fn resize(&mut self, new_size: (i32, i32)) {
+    async fn resize(&mut self, new_size: (i32, i32)) {
         if new_size.0 > 0 && new_size.1 > 0 {
             self.size = new_size;
             self.config.width = new_size.0 as u32;
             self.config.height = new_size.1 as u32;
             self.surface.configure(&self.device, &self.config);
-            self.update_surface();
+            self.update_surface().await;
         }
     }
 
-    fn update_surface(&mut self) {
-        let target = unsafe { SurfaceTargetUnsafe::from_window(&self.window).unwrap() };
+    async fn update_surface(&mut self) {
+        let mutex_guard = self.window.lock().await;
+        let temp_window = mutex_guard.deref();
+
+        let target = unsafe { SurfaceTargetUnsafe::from_window(temp_window).unwrap() };
 
         self.surface = unsafe { self.instance.create_surface_unsafe(target).unwrap() };
 
         self.surface.configure(&self.device, &self.config);
+    }
+
+    async fn should_close(&self) -> bool {
+        self.window.lock().await.should_close()
     }
 }
 
 pub async fn run() -> anyhow::Result<()> {
     let mut glfw = glfw::init(fail_on_errors!())?;
 
-    let (mut window, events) = glfw
+    let (window, events) = glfw
         .create_window(800, 600, "teacup", glfw::WindowMode::Windowed)
         .unwrap();
 
-    // window.set_all_polling(true);
-    window.set_key_polling(true);
-    window.set_size_polling(true);
-    window.make_current();
+    let arc_win = Arc::new(Mutex::new(window));
 
-    let mut state = State::new(&mut window).await;
+    {
+        let mut window = arc_win.lock().await;
+        // window.set_all_polling(true);
+        window.set_key_polling(true);
+        window.set_size_polling(true);
+        window.make_current();
+    }
+
+    let mut state = State::new(arc_win).await;
 
     let mut ui = build_ui(state.size);
 
-    while !state.window.should_close() {
+    while !state.should_close().await {
         glfw.poll_events();
 
         for (_, event) in glfw::flush_messages(&events) {
@@ -184,10 +205,10 @@ pub async fn run() -> anyhow::Result<()> {
                 glfw::WindowEvent::Close
                 | glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _)
                 | glfw::WindowEvent::Key(Key::Q, _, Action::Press, _) => {
-                    state.window.set_should_close(true)
+                    state.window.lock().await.set_should_close(true)
                 }
                 glfw::WindowEvent::Size(x, y) => {
-                    state.resize((x, y));
+                    state.resize((x, y)).await;
                     ui = build_ui((x, y));
                 }
                 _ => {
@@ -201,7 +222,7 @@ pub async fn run() -> anyhow::Result<()> {
             Err(e) => eprintln!("{:?}", e),
         }
 
-        state.window.swap_buffers();
+        state.window.lock().await.swap_buffers();
     }
 
     anyhow::Ok(())
@@ -228,21 +249,21 @@ fn build_ui(size: (i32, i32)) -> UI {
         max_width: Some(200),
         ..Default::default()
     };
-    root.children.push(Arc::new(Mutex::new(child)));
+    root.children.push(Arc::new(sync::Mutex::new(child)));
 
     let child = Rectangle {
         sizing: Sizing::GROW,
         color: color::srgb::PURPLE,
         ..Default::default()
     };
-    root.children.push(Arc::new(Mutex::new(child)));
+    root.children.push(Arc::new(sync::Mutex::new(child)));
 
     let child = Rectangle {
         sizing: Sizing::GROW,
         color: color::srgb::AQUA,
         ..Default::default()
     };
-    root.children.push(Arc::new(Mutex::new(child)));
+    root.children.push(Arc::new(sync::Mutex::new(child)));
 
     let mut child = Rectangle {
         layout_mode: LayoutMode::TopToBottom,
@@ -260,7 +281,7 @@ fn build_ui(size: (i32, i32)) -> UI {
         color: color::srgb::WHITE,
         ..Default::default()
     };
-    child.children.push(Arc::new(Mutex::new(inner)));
+    child.children.push(Arc::new(sync::Mutex::new(inner)));
 
     let inner = Rectangle {
         sizing: Sizing::GROW,
@@ -269,11 +290,11 @@ fn build_ui(size: (i32, i32)) -> UI {
         color: color::srgb::BLACK,
         ..Default::default()
     };
-    child.children.push(Arc::new(Mutex::new(inner)));
+    child.children.push(Arc::new(sync::Mutex::new(inner)));
 
-    root.children.push(Arc::new(Mutex::new(child)));
+    root.children.push(Arc::new(sync::Mutex::new(child)));
 
-    ui.root_item = Arc::new(Mutex::new(root));
+    ui.root_item = Arc::new(sync::Mutex::new(root));
 
     ui
 }
